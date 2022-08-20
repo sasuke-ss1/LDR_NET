@@ -1,4 +1,8 @@
+from turtle import width
 import torch.nn as nn
+import math
+import torch
+import numpy as np
 
 def conv_bn(inp, oup, stride):
     return nn.Sequential(
@@ -6,7 +10,6 @@ def conv_bn(inp, oup, stride):
         nn.BatchNorm2d(oup),
         nn.ReLU6(inplace=True)
     )
-
 
 def conv_1x1_bn(inp, oup):
     return nn.Sequential(
@@ -23,7 +26,7 @@ def make_divisible(x, divisible_by=8):
 
 class InvertedResidual(nn.Module):
     def __init__(self, inp, oup, stride, expand_ratio):
-        super().__init__()
+        super(InvertedResidual, self).__init__()
         self.stride = stride
         assert stride in [1, 2]
 
@@ -64,7 +67,7 @@ class InvertedResidual(nn.Module):
 
 class MobileNetV2(nn.Module):
     def __init__(self, n_class=1000, input_size=224, width_mult=1.):
-        super().__init__()
+        super(MobileNetV2, self).__init__()
         block = InvertedResidual
         input_channel = 32
         last_channel = 1280
@@ -80,7 +83,7 @@ class MobileNetV2(nn.Module):
         ]
 
         # building first layer
-        assert input_size % 32 == 0
+        assert input_size % 32 == 0, "Fucks"
         # input_channel = make_divisible(input_channel * width_mult)  # first channel is always 32!
         self.last_channel = make_divisible(last_channel * width_mult) if width_mult > 1.0 else last_channel
         self.features = [conv_bn(3, input_channel, 2)]
@@ -95,28 +98,44 @@ class MobileNetV2(nn.Module):
                 input_channel = output_channel
         # building last several layers
         self.features.append(conv_1x1_bn(input_channel, self.last_channel))
+
         # make it nn.Sequential
-        out0 = nn.Sequential(self.features[7]) ### Random 5 layers
-        out1 = nn.Sequential(self.features[12])
-        out2 = nn.Sequential(self.features[16])
-        out3 = nn.Sequential(self.features[19])
-        out4 = nn.Sequential(self.features[21])
-        self.outs = [out0, out1, out2, out3, out4]
-        self.features = nn.Sequential(*self.features)
+        self.out1 = nn.Sequential(*self.features[:7])
+        self.out2 = nn.Sequential(*self.features[7:10])
+        self.out3 = nn.Sequential(*self.features[10:13])
+        self.out4 = nn.Sequential(*self.features[13:14])
+        self.out5 = nn.Sequential(*self.features[14:])
+        self.AvgPool28_14 = nn.AvgPool2d(kernel_size=2, stride=2)
+        self.AvgPool14_7 = nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
         self._initialize_weights()
 
     def forward(self, x):
-        full = self.features(x)
-        out0, out1, out2, out3, out4 = [self.outs[i](x) for i in range(len(self.outs))]
-        return (full, out0, out1, out2, out3, out4)
+        #full = self.features(x)
+        out1 = self.out1(x)
+        out2 = self.out2(out1)
+        out3 = self.out3(out2)
+        out4 = self.out4(out3)
+        out5 = self.out5(out4)
+        print(self.AvgPool14_7(self.AvgPool28_14(out1)).shape)
+        print(self.AvgPool14_7(out2).shape)
+        print(self.AvgPool14_7(out3).shape)
+        print(self.AvgPool14_7(out4).shape)
+        print(out5.shape)
+        return torch.mean(self.AvgPool14_7(self.AvgPool28_14(out1)), dim=1) +  torch.mean(self.AvgPool14_7(out2), dim=1) +  torch.mean(self.AvgPool14_7(out3), dim=1)+torch.mean(self.AvgPool14_7(out4), dim=1) +  torch.mean(out5, dim=1)
 
     def _initialize_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, torch.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2. / n))
                 if m.bias is not None:
                     m.bias.data.zero_()
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+
+if __name__ == "__main__":
+    tmp = np.random.rand(1, 3, 224 ,224).astype(np.float32)
+    image = torch.from_numpy(tmp)
+    model = MobileNetV2()
+    model.forward(image)
