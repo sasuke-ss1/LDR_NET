@@ -17,7 +17,7 @@ class LineLoss(nn.Module):
         self.beta = Beta
         self.gamma = Gamma
 
-    def __call__(self, line):
+    def forward(self, line):
         line_x = line[:, 0::2]              # line_x = {{all x co-ordinates of left edge},{all x co-ordinates of right edge},...}
         line_y = line[:, 1::2]              # line_y = {{all y co-ordinates of left edge},{all y co-ordinates of right edge},...}
         x_diff = line_x[:, 1:] - line_x[:, 0:-1]          # forming x-component of n-4 vectors formed from n points
@@ -37,3 +37,8 @@ class LineLoss(nn.Module):
         distance_loss = torch.sum(x_diff_loss + y_diff_loss)
         line_loss = self.beta*sim_loss + self.gamma*distance_loss
         return line_loss
+
+if __name__ == "__main__":
+  import numpy as np
+  
+  print("done")

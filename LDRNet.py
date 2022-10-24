@@ -5,7 +5,8 @@
 import torch
 import torchvision 
 from torchvision.models import mobilenet_v2
-import torchvision.functional as F 
+
+import torch.nn.functional as F 
 import torch.nn as nn
 
 
@@ -16,38 +17,34 @@ class LDRNet(nn.Module):
         self.classification_list = classification_list
         self.points_size = points_size
         self.input_shapes = input_shapes
-        # self.base_model = \
-        #     tf.keras.applications.MobileNetV2(input_shape=self.input_shapes,
-        #                                       alpha=alpha, include_top=False)
 
-        self.base_model = mobilenet_v2(width_mult=alpha)
+        self.base_model = nn.Sequential(*list(mobilenet_v2(width_mult=alpha).children())[:-1])
         if len(classification_list) > 0:
             class_size = sum(self.classification_list)
         else:
             class_size = 0
-        # self.global_pool = GlobalAvgPool2D()
-        # not sure if will work (basically avg_pool2d on the whole image will be global avg)
-        self.global_pool = F.avg_pool2d()  
-        self.corner = OutputBranch(8, "output_corner")
-        self.border = OutputBranch((points_size - 4) * 2, "output_border")
-        self.cls = OutputBranch(class_size + len(self.classification_list), "output_class")
 
-    def call(self, inputs):
+        self.corner = OutputBranch(1280, 8, "output_corner")
+        self.border = OutputBranch(1280, (points_size - 4) * 2, "output_border")
+        self.cls = OutputBranch(1280, class_size + len(self.classification_list), "output_class")
+
+    def forward(self, inputs):
         x = self.base_model(inputs)
-        x = self.global_pool(x, kernel_size=len(x))   
-        # x = F.avg_pool2d(x, kernel_size=len(x))
+        x = F.avg_pool2d(x, kernel_size=(x.shape[2], x.shape[3]))   
         corner_output = self.corner(x)
         border_output = self.border(x)
         cls_output = self.cls(x)
         return corner_output, border_output, cls_output
 
 
-class OutputBranch(Model):
-    def __init__(self, size, name=None):
+class OutputBranch(nn.Module):
+    def __init__(self, in_size, out_size, name=None):
         super(OutputBranch, self).__init__()
-        self.fc = nn.Linear(size, name=name)
+        self.flatten = nn.Flatten()
+        self.fc = nn.Linear(in_size, out_size)
 
-    def call(self, inputs):
+    def forward(self, inputs):
+        inputs = self.flatten(inputs)
         output = self.fc(inputs)
         return output
 
@@ -55,7 +52,7 @@ class OutputBranch(Model):
 if __name__ == "__main__":
     import numpy as np
 
-    xx = np.zeros((1, 224, 224, 3))
+    xx = torch.zeros((1, 3, 224, 224), dtype=torch.float32)
     model = LDRNet()
     y = model(xx)
     print(y)
