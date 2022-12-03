@@ -1,0 +1,24 @@
+backbone_alpha: 1.4
+points_size: 4
+batch_size: 1
+epochs: 100
+img_folder_path: "/home/sasuke/repos/LDR_NET/datasheet001"
+class_list:
+  - 1
+optimizer:
+  rates:
+    - 0.001
+    - 0.0001
+    - 0.00005
+    - 0.00001
+  bounds:
+    - 250
+    - 700
+    - 850
+num_epochs:
+  1000
+loss:
+  loss_ratio: 50
+  slop_loss_ratio: 0.01
+  diff_loss_ratio: 0.01
+  class_loss_ratio: 1

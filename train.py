@@ -1,17 +1,19 @@
 import torch
 from LDRNet import LDRNet
-from dataloader import CardDataset
+from dataloader import DocData
 from torch.utils.data import DataLoader
 from loss import LineLoss, regression_loss
 import numpy as np
+from torchvision import transforms
 from tqdm import tqdm
 import yaml
 import argparse
 from torch.optim import Adam
 
 def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_loss = True):
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     weighted_loc_loss = regression_loss()
-    line_loss = LineLoss()
+    line_loss = LineLoss(0.5, 0.5) # Random Values
     if coord_size>8:
         assert coord_size%4 == 0, "Coord Size Wrong"
         size_per_line = int((coord_size-8)/4 /2)
@@ -21,21 +23,28 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
         new_coord = coord_start + coord_increment
         for index in range(1, size_per_line):
             new_coord = torch.cat([new_coord, coord_start + (index + 1)*coord_increment], axis = 1)
-            y = torch.cat([new_coord, y[:, 8]], axis = 1)
-    corner_y_, border_y_, class_y_ = model(x, training=training)
+            #print(y.shape)
+        y = torch.cat([new_coord, y[:, 0:8]], axis = 1)
+    corner_y_, border_y_, class_y_ = model(x)
     coord_y_ = torch.cat([corner_y_, border_y_], axis=1)
     coord_y = y[:, 0:coord_size]  
+    y_end = coord_size
     y__end = coord_size
     losses = []
     total_loss = 0
     for class_size in class_list:
-        class_y = y[:, y_end]
+        class_y = torch.ones((y.shape[0], 1), device=device)
         y_end += 1
         y__end += class_size + 1
-        class_loss = torch.nn.BCEWithLogitsLoss(class_y, class_y)
+        #print(class_y)
+        #print(class_y_)
+        bce = torch.nn.BCEWithLogitsLoss(reduction='none')
+        class_loss = bce(class_y, class_y_)
         losses.append(class_loss)
-        total_loss += class_loss
-    loc_loss=config['loss']['loss_ratio']*weighted_loc_loss(coord_y, coord_y_, weights=1)
+        total_loss += class_loss.squeeze(1)
+    loc_loss=config['loss']['loss_ratio']*weighted_loc_loss(coord_y, corner_y_, weights=1)
+    #print(total_loss.shape)
+    #print(loc_loss.shape)
     total_loss+=loc_loss*config['loss']['class_loss_ratio']
     losses.append(loc_loss*config['loss']['class_loss_ratio'])
 
@@ -65,30 +74,36 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
 
 
 def train(ops):
-    batch_size = ops.batch_size
-    epochs = ops.batch_size
-    label_path = ops.label_path
-    img_path = ops.img_path
-    class_size = ops.class_list
-    dataset = CardDataset(label_path, img_folder=img_path, class_sizes=class_size, batch_size=batch_size)
-    train_loader = DataLoader(dataset)
-    optimizer = Adam()
-    LDR = LDRNet()
-    for epoch in tqdm(range(epochs)):
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    batch_size = ops['batch_size']
+    epochs = ops['epochs']
+    img_path = ops['img_folder_path']
+    class_size = ops['class_list']
+    Transform = transforms.Compose([transforms.ToTensor()])
+    dataset = DocData(img_dir=img_path, transforms=Transform)
+    train_loader = DataLoader(dataset, batch_size=batch_size)
+    LDR = LDRNet(points_size=ops['points_size']).to(device)
+    optimizer = Adam(LDR.parameters())
+    for epoch in range(epochs):
         step = 0
-        for x, y in train_loader:
+        for x, y in tqdm(train_loader):
+            x, y = x.to(device), y.to(device)
+            #print(x.shape)
             step += 1
             loss, _, _ = Loss(ops, LDR, x, y ,True, ops['points_size']*2, class_list=ops['class_list'])
             optimizer.zero_grad()
-            loss.backward()
+            loss.mean().backward()
             optimizer.step()
-            if(step % 100):
-                print(f"Current Epoch:{epoch}, Current Step:{step}")
+            if not (step % 20):
+                print(f"Current Epoch:{epoch+1}, Current Step:{step}, Current Loss: {loss.mean()}")
+        if not (epoch+1 % 20):
+            torch.save(LDR, "./model.pth")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_file', default='/home/sasuke/repos/LDR_NET/config.yml', type=str)
     args = parser.parse_args()
-    config = yaml.load(open(args.config_file, 'rb'))
+    config = yaml.safe_load(open(args.config_file, "r"))
+    #print(config)
     train(config)

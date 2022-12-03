@@ -26,7 +26,7 @@ class LDRNet(nn.Module):
 
         self.corner = OutputBranch(1280, 8, "output_corner")
         self.border = OutputBranch(1280, (points_size - 4) * 2, "output_border")
-        self.cls = OutputBranch(1280, class_size + len(self.classification_list), "output_class")
+        self.cls = OutputBranch(1280, class_size, "output_class")
 
     def forward(self, inputs):
         x = self.base_model(inputs)

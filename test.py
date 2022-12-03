@@ -42,9 +42,8 @@ class DocData(Dataset):
             for pt in neighbor.iter('point'):
                 x = float(pt.get("x"))
                 y = float(pt.get("y"))
-                coords.append(x/224)
-                coords.append(y/224)
-            self.annotations.append((np.array(coords, np.float32)))
+                coords.append((x,y))
+            self.annotations.append(coords)
         
 
     def __len__(self):
@@ -57,9 +56,8 @@ class DocData(Dataset):
 
         if self.transforms:
             img = self.transforms(img)
-        self.annotations = torch.from_numpy(np.array(self.annotations))
-        #print(img.shape)
-        return (img-127.5)/255, coords
+    
+        return img, coords
 
 if __name__  == "__main__":
     data = DocData(img_dir = image_dir, annotations_path=annotations_path)
@@ -68,4 +66,5 @@ if __name__  == "__main__":
     plt.imshow(sample)
     plt.show()
     print(coords)
+
 
