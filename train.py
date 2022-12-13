@@ -49,8 +49,7 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
     losses.append(loc_loss*config['loss']['class_loss_ratio'])
 
     if coord_size>8:
-        total_slop_loss = 0
-        total_diff_loss = 0
+        total_line_loss = 0
         for index in range(4):
             line = coord_y_[:, index * 2:index * 2 + 2]
             for coord_index in range(size_per_line):
@@ -58,18 +57,16 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
                     [line, coord_y_[:, 8 + coord_index * 8 + index * 2:8 + coord_index * 8 + index * 2 + 2]], axis=1)
                 # liner = tf.concat([liner,coord_y[:,8+coord_index*8+index*2:8+coord_index*8+index*2+2]],axis=1)
             line = torch.cat([line, coord_y_[:, (index * 2 + 2) % 8:(index * 2 + 2 + 2) % 8]], axis=1)
-            cur_slop_loss, cur_diff_loss = line_loss(line)
-        if use_line_loss:
-            losses.append(total_slop_loss * config["loss"]["slop_loss_ratio"])
-            losses.append(total_diff_loss * config["loss"]["diff_loss_ratio"])
-            total_loss += total_slop_loss * config["loss"]["slop_loss_ratio"]
-            total_loss += total_diff_loss * config["loss"]["diff_loss_ratio"]
-        else:
-            losses.append(total_slop_loss - total_slop_loss)  # total_slop_loss * slop_loss_ratio)
-            losses.append(total_diff_loss - total_diff_loss)  # total_diff_loss * diff_loss_ratio)
-        total_loss += 0  # total_slop_loss * slop_loss_ratio
-        total_loss += 0  # total_diff_loss * diff_loss_ratio
-
+            line_loss_ = line_loss(line)
+            if use_line_loss:
+                total_line_loss = total_line_loss + line_loss_
+            
+        losses.append(total_line_loss)
+        #else:
+      #      losses.append(total_slop_loss - total_slop_loss)  # total_slop_loss * slop_loss_ratio)
+       #     losses.append(total_diff_loss - total_diff_loss)  # total_diff_loss * diff_loss_ratio)
+    
+    total_loss += total_line_loss
     return total_loss, losses, [coord_y_, class_y_]
 
 
