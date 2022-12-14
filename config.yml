@@ -1,5 +1,5 @@
 backbone_alpha: 1.4
-points_size: 4
+points_size: 8
 batch_size: 1
 epochs: 100
 img_folder_path: "/home/sasuke/repos/LDR_NET/datasheet001"
