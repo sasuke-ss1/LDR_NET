@@ -42,8 +42,8 @@ class DocData(Dataset):
             for pt in neighbor.iter('point'):
                 x = float(pt.get("x"))
                 y = float(pt.get("y"))
-                coords.append(x/224)
-                coords.append(y/224)
+                coords.append(x/1920)
+                coords.append(y/1080)
             self.annotations.append((np.array(coords, np.float32)))
         
 

@@ -27,7 +27,7 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
         y = torch.cat([new_coord, y[:, 0:8]], axis = 1)
     corner_y_, border_y_, class_y_ = model(x)
     coord_y_ = torch.cat([corner_y_, border_y_], axis=1)
-    coord_y = y[:, 0:coord_size]  
+    coord_y = y[:, 0:8]  
     y_end = coord_size
     y__end = coord_size
     losses = []
@@ -39,9 +39,10 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
         #print(class_y)
         #print(class_y_)
         bce = torch.nn.BCEWithLogitsLoss(reduction='none')
-        class_loss = bce(class_y, class_y_)
+        class_loss = bce(class_y_, class_y)
         losses.append(class_loss)
         total_loss += class_loss.squeeze(1)
+    #print(coord_y.shape, corner_y_.shape)
     loc_loss=config['loss']['loss_ratio']*weighted_loc_loss(coord_y, corner_y_, weights=1)
     #print(total_loss.shape)
     #print(loc_loss.shape)
@@ -49,7 +50,7 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
     losses.append(loc_loss*config['loss']['class_loss_ratio'])
 
     if coord_size>8:
-        total_line_loss = 0
+        total_lineLoss = 0
         for index in range(4):
             line = coord_y_[:, index * 2:index * 2 + 2]
             for coord_index in range(size_per_line):
@@ -57,16 +58,17 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
                     [line, coord_y_[:, 8 + coord_index * 8 + index * 2:8 + coord_index * 8 + index * 2 + 2]], axis=1)
                 # liner = tf.concat([liner,coord_y[:,8+coord_index*8+index*2:8+coord_index*8+index*2+2]],axis=1)
             line = torch.cat([line, coord_y_[:, (index * 2 + 2) % 8:(index * 2 + 2 + 2) % 8]], axis=1)
-            line_loss_ = line_loss(line)
-            if use_line_loss:
-                total_line_loss = total_line_loss + line_loss_
+            total_lineLoss += line_loss(line)
             
-        losses.append(total_line_loss)
+        if use_line_loss:
+            losses.append(total_lineLoss * config["loss"]["slop_loss_ratio"])
+            #losses.append(total_diff_loss * config["loss"]["diff_loss_ratio"])
+            total_loss += total_lineLoss * config["loss"]["slop_loss_ratio"]
+            #total_loss += total_diff_loss * config["loss"]["diff_loss_ratio"]
         #else:
-      #      losses.append(total_slop_loss - total_slop_loss)  # total_slop_loss * slop_loss_ratio)
-       #     losses.append(total_diff_loss - total_diff_loss)  # total_diff_loss * diff_loss_ratio)
-    
-    total_loss += total_line_loss
+            #losses.append(total_slop_loss - total_slop_loss)  # total_slop_loss * slop_loss_ratio)
+            #losses.append(total_diff_loss - total_diff_loss)  # total_diff_loss * diff_loss_ratio)
+
     return total_loss, losses, [coord_y_, class_y_]
 
 
@@ -87,12 +89,13 @@ def train(ops):
             x, y = x.to(device), y.to(device)
             #print(x.shape)
             step += 1
-            loss, _, _ = Loss(ops, LDR, x, y ,True, ops['points_size']*2, class_list=ops['class_list'])
+            loss, debug, _ = Loss(ops, LDR, x, y ,True, ops['points_size']*2, class_list=ops['class_list'])
             optimizer.zero_grad()
             loss.mean().backward()
             optimizer.step()
             if not (step % 20):
                 print(f"Current Epoch:{epoch+1}, Current Step:{step}, Current Loss: {loss.mean()}")
+                print(debug[0])
         if not (epoch+1 % 20):
             torch.save(LDR, "./model.pth")
 
