@@ -14,7 +14,6 @@ Requires the following Python libraries:
 - matplotlib==3.6.2
 - numpy==1.23.2
 - opencv-python==4.6.0.66
-- pandas==1.5.2
 - Pillow==9.3.0
 - PyYAML==6.0
 - torch==1.13.1
@@ -23,9 +22,14 @@ Requires the following Python libraries:
 <br>
 
 ## Instructions  
+Generate training images from video:
+```
+python3 Vid2Img.py --path <path to video directory>
+```
+
 Training:
 ```
-python3 train.py [--config_file=<config.yml>]
+python3 train.py [--config_file <config.yml>]
 ```
 
 Predicting:
