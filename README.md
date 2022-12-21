@@ -2,7 +2,8 @@
 __CV04__: On-Device Deep Learning Project
 
 Resources referred:
-- https://arxiv.org/pdf/2206.02136.pdf
+- https://arxiv.org/pdf/2101.09671.pdf
+- https://arxiv.org/pdf/1909.12326.pdf
 - https://github.com/niuwagege/LDRNet
 - http://smartdoc.univ-lr.fr/smartdoc-2015-challenge-1/smartdoc-2015-challenge-1-dataset/
 - https://google.github.io/flatbuffers/index.html#flatbuffers_overview
