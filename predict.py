@@ -1,22 +1,22 @@
 import cv2
 import torch
 import numpy as np
-from LDRNet import LDRNet
-from PIL import ImageDraw, Image
 
+vid = cv2.VideoCapture("/home/sasuke/repos/LDR_NET/sampleDataset/input_sample/background00/datasheet001.avi")
+net = torch.load("./model1.pth").to(torch.device('cpu')).eval()
 
-net = LDRNet(points_size=4)
-net.load_state_dict(torch.load("./model.pth"))
-net.eval()
+while True:
+    ret, frame = vid.read()
+    img = cv2.resize(frame, (224, 224))
+    img2 = torch.permute(torch.from_numpy((img.astype(np.float32)-127.5) / 255.0), (2, 0, 1)).unsqueeze(0)
+    coord = net(img2)[0].detach().numpy().reshape((4,2))*224
+    coord = coord.astype(np.int32)
+    img = cv2.polylines(img, [coord], True, (0,255,0), 8)
+    img = cv2.resize(img, (1920, 1080))
 
-img = cv2.imread("./datasheet001/frame1.png")
-img_show = Image.open("./datasheet001/frame1.png")
+    cv2.imshow('vid', img)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-img = img.astype(np.float32)
-img2 = torch.permute(torch.from_numpy((img - 127.5) / 255.0), (2, 0, 1)).unsqueeze(0)
-result = net(img2)[0].detach().numpy()
-coord = [int(x * 224) for x in result[0]]
-
-draw = ImageDraw.Draw(img_show)
-draw.line(coord, fill=(255, 255, 0), width=5)
-img_show.show()
+vid.release()
+cv2.destroyAllWindows()
