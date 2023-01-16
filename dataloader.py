@@ -1,11 +1,13 @@
 import os
 import xml.etree.ElementTree as ET
 
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from PIL import Image
 from torch.utils.data import Dataset
+
+from transforms import rotate_point
 
 
 image_dir = "./datasheet001"
@@ -49,12 +51,32 @@ class DocData(Dataset):
         return len(self.annotations)
 
     def __getitem__(self, idx):
+        deg = None
+        if isinstance(idx, tuple):
+            idx, deg = idx
+
         img_name = os.path.join(self.img_dir, f"frame{idx + 1}.png")
-        img = Image.open(img_name)
+        img = cv2.imread(img_name)
+        # img = cv2.resize(img, (224, 224))
         coords = self.annotations[idx]
 
         if self.transforms:
             img = self.transforms(img)
+
+        if deg:
+            try:
+                img = torch.from_numpy(img)
+            except TypeError:
+                pass
+
+            img, coords = rotate_point(
+                img.permute(2, 0, 1),
+                torch.from_numpy(np.array(coords).reshape((4, 2))),
+                deg * np.pi / 180,
+                *img.shape[:2],
+            )
+            img = img.permute(1, 2, 0)
+
         self.annotations = torch.from_numpy(np.array(self.annotations))
         # print(img.shape)
         return (img - 127.5) / 255, coords
@@ -62,8 +84,11 @@ class DocData(Dataset):
 
 if __name__ == "__main__":
     data = DocData(img_dir=image_dir, annotations_path=annotations_path)
-    fig = plt.figure()
     sample, coords = data[0]
-    plt.imshow(sample)
+    plt.imshow(sample + 0.5)
+    plt.show()
+    print(coords)
+    sample, coords = data[0, 90]
+    plt.imshow(sample + 0.5)
     plt.show()
     print(coords)
