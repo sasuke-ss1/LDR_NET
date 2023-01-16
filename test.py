@@ -1,8 +1,9 @@
 import os
-import matplotlib.pyplot as plt
 import xml.etree.ElementTree as ET
-from torch.utils.data import Dataset
+
+import matplotlib.pyplot as plt
 from PIL import Image
+from torch.utils.data import Dataset
 
 
 image_dir = "./datasheet001"
@@ -29,7 +30,6 @@ class DocData(Dataset):
         self.get_annotations()
 
     def get_annotations(self):
-
         tree = ET.parse(self.annotations_path)
         root = tree.getroot()
 

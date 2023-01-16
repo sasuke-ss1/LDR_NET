@@ -3,10 +3,9 @@
 # from tensorflow.keras.layers import Dense, GlobalAvgPool2D
 
 import torch
-from torchvision.models import mobilenet_v2
-
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
+from torchvision.models import mobilenet_v2
 
 
 class LDRNet(nn.Module):

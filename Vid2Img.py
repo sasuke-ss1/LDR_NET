@@ -1,15 +1,17 @@
-import cv2
-import os
 import argparse
+import os
+
+import cv2
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--path", "-p", required=True, help="Relative Path to video Directory")
+parser.add_argument("--path", "-p", required=True, help="Relative Path to Video Directory")
 args = parser.parse_args()
 path = args.path
 Direc_Name = path.split("/")[-1].split(".")[0]
 vid = cv2.VideoCapture(path)
-try:
 
+try:
     if not os.path.exists(Direc_Name):
         os.makedirs(Direc_Name)
         print("Directory was created")
@@ -25,5 +27,6 @@ while True:
         frame += 1
     else:
         break
+
 vid.release()
 cv2.destroyAllWindows()

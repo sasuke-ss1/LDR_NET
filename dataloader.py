@@ -1,10 +1,11 @@
 import os
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
 import xml.etree.ElementTree as ET
-from torch.utils.data import Dataset
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
 from PIL import Image
+from torch.utils.data import Dataset
 
 
 image_dir = "./datasheet001"

@@ -1,6 +1,7 @@
 import math
-import torch
+
 import numpy as np
+import torch
 import torch.nn as nn
 
 
@@ -21,8 +22,6 @@ def conv_1x1_bn(inp, oup):
 
 
 def make_divisible(x, divisible_by=8):
-    import numpy as np
-
     return int(np.ceil(x * 1.0 / divisible_by) * divisible_by)
 
 
@@ -97,12 +96,8 @@ class LineLoss(nn.Module):
         )
         # 0.0000000000001 is for ensuring that the denominator does not become zero
         slop_loss = torch.mean(1 - similarity, axis=1)
-        x_diff_loss = torch.mean(
-            torch.abs(torch.abs(x_diff[:, 1:]) - torch.abs(x_diff[:, 0:-1])), 1
-        )
-        y_diff_loss = torch.mean(
-            torch.abs(torch.abs(y_diff[:, 1:]) - torch.abs(y_diff[:, 0:-1])), 1
-        )
+        x_diff_loss = torch.mean(torch.abs(torch.abs(x_diff[:, 1:]) - torch.abs(x_diff[:, 0:-1])), 1)
+        y_diff_loss = torch.mean(torch.abs(torch.abs(y_diff[:, 1:]) - torch.abs(y_diff[:, 0:-1])), 1)
         sim_loss = torch.sum(slop_loss)
         distance_loss = torch.sum(x_diff_loss + y_diff_loss)
         line_loss = self.beta * sim_loss + self.gamma * distance_loss
@@ -129,9 +124,7 @@ class MobileNetV2(nn.Module):
         # building first layer
         assert input_size % 32 == 0, "Fucks"
         # input_channel = make_divisible(input_channel * width_mult)  # first channel is always 32!
-        self.last_channel = (
-            make_divisible(last_channel * width_mult) if width_mult > 1.0 else last_channel
-        )
+        self.last_channel = make_divisible(last_channel * width_mult) if width_mult > 1.0 else last_channel
         self.features = [conv_bn(3, input_channel, 2)]
         # building inverted residual blocks
         for t, c, n, s in interverted_residual_setting:
