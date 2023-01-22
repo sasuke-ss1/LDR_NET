@@ -2,3 +2,4 @@ sampleDataset
 testDataset
 datasheet*
 __pycache__
+*.pth

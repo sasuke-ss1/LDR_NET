@@ -3,6 +3,7 @@ points_size: 8
 batch_size: 1
 epochs: 100
 img_folder_path: "datasheet001"
+annotations_folder_path: "sampleDataset/input_sample_groundtruth/background00_gt/datasheet001.gt.xml"
 class_list:
   - 1
 optimizer:

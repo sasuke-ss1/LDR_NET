@@ -4,9 +4,9 @@ import torch
 from torchvision.transforms.functional import rotate
 
 
-def rotate_point(img, point, radians, image_h, image_w):
-    y = image_h * (point[:, 1] - 0.5)
-    x = image_w * (point[:, 0] - 0.5)
+def rotate_with_points(img, points, radians, image_h, image_w):
+    y = image_h * (points[:, 1] - 0.5)
+    x = image_w * (points[:, 0] - 0.5)
 
     coordinates = torch.stack([y, x], axis=1)
     c, s = np.cos(radians), np.sin(radians)
@@ -22,9 +22,9 @@ def rotate_point(img, point, radians, image_h, image_w):
 
 if __name__ == "__main__":
     img = cv2.imread("datasheet001/frame1.png")
-    img = cv2.resize(img, (224, 224))
-    coord = torch.from_numpy(np.array([0.3720, 0.7466, 0.3835, 0.1873, 0.6144, 0.1852, 0.6548, 0.7335]).reshape((4, 2)))
-    img, new_coord = rotate_point(torch.from_numpy(img).permute(2, 0, 1), coord, 0.5 * np.pi, 224, 224)
+    img = torch.from_numpy(cv2.resize(img, (224, 224))).permute(2, 0, 1)
+    coord = np.array([0.3720, 0.7466, 0.3835, 0.1873, 0.6144, 0.1852, 0.6548, 0.7335], dtype=np.float32)
+    img, new_coord = rotate_with_points(img, torch.from_numpy(coord).reshape((4, 2)), 0.5 * np.pi, 224, 224)
 
     new_coord = (new_coord * 224).numpy()
     new_coord = new_coord.astype(np.int32)

@@ -91,14 +91,15 @@ def train(ops):
     batch_size = ops["batch_size"]
     epochs = ops["epochs"]
     img_path = ops["img_folder_path"]
+    annotations_path = ops["annotations_folder_path"]
     class_size = ops["class_list"]
-    Transform = transforms.Compose([transforms.ToTensor()])
-    dataset = DocData(img_dir=img_path, transforms=Transform)
+    Transform = transforms.Compose([])
+    dataset = DocData(img_dir=img_path, annotations_path=annotations_path, transforms=Transform)
     train_loader = DataLoader(dataset, batch_size=batch_size)
     LDR = LDRNet(points_size=ops["points_size"]).to(device)
     optimizer = Adam(LDR.parameters(), lr=0.005)
 
-    scheduler = lr_scheduler.MultiStepLR(optimizer, ops["bounds"], gamma=ops["gamma"])
+    scheduler = lr_scheduler.MultiStepLR(optimizer, ops["optimizer"]["bounds"])  # gamma=ops["gamma"])
 
     for epoch in range(epochs):
         step = 0
@@ -121,7 +122,7 @@ def train(ops):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_file", default="/home/sasuke/repos/LDR_NET/config.yml", type=str)
+    parser.add_argument("--config_file", default="./config.yml", type=str)
     args = parser.parse_args()
     config = yaml.safe_load(open(args.config_file, "r"))
     # print(config)
