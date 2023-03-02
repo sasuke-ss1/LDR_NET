@@ -1,12 +1,12 @@
 import argparse
-
+import os
 import torch
 import yaml
 from torch.optim import Adam, lr_scheduler
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
-
+import glob
 from dataloader import DocData
 from LDRNet import LDRNet
 from loss import LineLoss, regression_loss
@@ -86,17 +86,30 @@ def Loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
     return total_loss.mean(), losses, [coord_y_, class_y_]
 
 
-def train(ops):
+def train(ops, partially_trained = False):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     batch_size = ops["batch_size"]
     epochs = ops["epochs"]
-    img_path = ops["img_folder_path"]
-    annotations_path = ops["annotations_folder_path"]
+    #img_path = ops["img_folder_path"]
+    annotations_path = ops["annotations_folder_path"] + '/*.gt.xml'
     class_size = ops["class_list"]
     Transform = transforms.Compose([])
-    dataset = DocData(img_dir=img_path, annotations_path=annotations_path, transforms=Transform)
+    cnt = 0
+    for annotations in glob.glob(annotations_path):
+        annotations = annotations.split('/')[-1]
+        img_path = annotations.split('.')[0]
+        if os.path.exists(img_path):
+            if cnt == 0 :
+                dataset = DocData(img_dir=img_path, annotations_path= os.path.join('/home/web_slinger/Downloads/testDataset/background01',annotations), transforms=Transform)
+                cnt = cnt + 1
+            else :
+                temp_dataset = DocData(img_dir=img_path, annotations_path= os.path.join('/home/web_slinger/Downloads/testDataset/background01',annotations), transforms=Transform)
+                dataset = torch.utils.data.ConcatDataset([dataset, temp_dataset])
     train_loader = DataLoader(dataset, batch_size=batch_size)
-    LDR = LDRNet(points_size=ops["points_size"]).to(device)
+    if partially_trained :
+        LDR = torch.load("./model.pth").to(device)
+    else :
+        LDR = LDRNet(points_size=ops["points_size"]).to(device)
     optimizer = Adam(LDR.parameters(), lr=0.005)
 
     scheduler = lr_scheduler.MultiStepLR(optimizer, ops["optimizer"]["bounds"])  # gamma=ops["gamma"])
@@ -122,11 +135,11 @@ def train(ops):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_file", default="./config.yml", type=str)
+    parser.add_argument("--config_file", default="/home/web_slinger/Documents/CVI/LDR_NET-main/config.yml", type=str)
     args = parser.parse_args()
     config = yaml.safe_load(open(args.config_file, "r"))
     # print(config)
-    net = train(config)
+    net = train(config, partially_trained = True)
     # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     # img = cv2.imread("./datasheet001/frame1.png")
     # img = img.astype(np.float32)
