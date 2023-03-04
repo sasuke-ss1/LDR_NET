@@ -13,10 +13,11 @@ while True:
     img2 = torch.permute(torch.from_numpy((img.astype(np.float32) - 127.5) / 255.0), (2, 0, 1)).unsqueeze(0)
     border = net(img2)[1].detach().numpy().reshape((-1,2))
     coord = net(img2)[0].detach().numpy().reshape((-1, 2))
-    coord[:,0] = coord[:,0]*1920
-    coord[:,1] = coord[:,1]*1080
-    border[:,0] = border[:,0]*1920
-    border[:,1] = border[:,1]*1080
+    x, y = clone.shape
+    coord[:,0] = coord[:,0]*x
+    coord[:,1] = coord[:,1]*y
+    border[:,0] = border[:,0]*x
+    border[:,1] = border[:,1]*y
     coord = coord.astype(np.int32)
     for c in coord:
         clone = cv2.circle(clone, tuple(c), 10, (255,0, 0), 2)
@@ -32,4 +33,3 @@ while True:
 
 vid.release()
 cv2.destroyAllWindows()
-
