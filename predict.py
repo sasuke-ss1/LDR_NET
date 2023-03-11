@@ -1,35 +1,25 @@
+import tensorflow as tf
 import cv2
 import numpy as np
-import torch
+import warnings
+warnings.filterwarnings("ignore")
 
-vidpath = 'sampleDataset/input_sample/background00/datasheet001.avi'
-vid = cv2.VideoCapture(vidpath)
-net = torch.load("./model.pth").to(torch.device("cpu")).eval()
-
+net = tf.keras.models.load_model("./model_file/model-icdar-1.4")
+vid = cv2.VideoCapture(0)
 while True:
-    ret, frame = vid.read()
-    clone = frame.copy()
-    img = cv2.resize(frame, (224, 224))
-    img2 = torch.permute(torch.from_numpy((img.astype(np.float32) - 127.5) / 255.0), (2, 0, 1)).unsqueeze(0)
-    border = net(img2)[1].detach().numpy().reshape((-1,2))
-    coord = net(img2)[0].detach().numpy().reshape((-1, 2))
-    x, y, _ = clone.shape
-    coord[:,0] = coord[:,0]*y
-    coord[:,1] = coord[:,1]*x
-    border[:,0] = border[:,0]*y
-    border[:,1] = border[:,1]*x
-    coord = coord.astype(np.int32)
-    for c in coord:
-        clone = cv2.circle(clone, tuple(c), 10, (255,0, 0), 2)
-    for b in border:
-        print(b)
-        clone = cv2.circle(clone, tuple(b), 10, (255,0,0), 2)
-    img = cv2.polylines(clone, [coord], True, (0, 255, 0), 8)
-    #img = cv2.resize(img, (1920, 1080))
-    
-    cv2.imshow("vid", img)
-    if cv2.waitKey(1) & 0xFF == ord("q"):
+    _, frame = vid.read()
+    img = frame.copy()
+    img = cv2.resize(img, (224, 224))
+    img_show = np.copy(img)
+    img = img.astype(np.float32)
+    img2 = img / 255.0
+    result = net([img2], training=False).numpy()[0]
+    coord = result[0:8]
+    coord = [int(x * 224) for x in coord]
+    cv2.circle(img_show, (coord[0], coord[1]), 3, (0, 0, 255),-1)
+    cv2.circle(img_show, (coord[2], coord[3]), 3, (0, 255, 255),-1)
+    cv2.circle(img_show, (coord[4], coord[5]), 3, (255, 0, 0),-1)
+    cv2.circle(img_show, (coord[6], coord[7]), 3, (0, 255, 0),-1)
+    cv2.imshow("show", img_show)
+    if cv2.waitKey(1) & 0xFF == ord('q'): 
         break
-
-vid.release()
-cv2.destroyAllWindows()
