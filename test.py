@@ -6,11 +6,11 @@ import Polygon
 
 
 def sort_gt(gt):
-    '''
+    """
     Sort the ground truth labels so that TL corresponds to the label with smallest distance from O
     :param gt:
     :return: sorted gt
-    '''
+    """
     myGtTemp = gt * gt
     sum_array = myGtTemp.sum(axis=1)
     tl_index = np.argmin(sum_array)
@@ -36,7 +36,8 @@ def intersection_with_correction_smart_doc_implementation(gt, prediction, img):
     # Corner order: TL, BL, BR, TR
     # object_coord_target = np.float32([[0, 0], [0, target_height], [target_width, target_height], [target_width, 0]])
     object_coord_target = np.array(
-        np.float32([[0, 0], [target_width, 0], [target_width, target_height], [0, target_height]]))
+        np.float32([[0, 0], [target_width, 0], [target_width, target_height], [0, target_height]])
+    )
     # print (gt, object_coord_target)
     H = cv2.getPerspectiveTransform(gt.astype(np.float32).reshape(-1, 1, 2), object_coord_target.reshape(-1, 1, 2))
 
@@ -90,7 +91,7 @@ def cal_mJI(label_path, img_folder, net):
             img2 = img
             img2 = img2 / 255.0
 
-            '''x = net.base_model(np.expand_dims(img2,0))
+            """x = net.base_model(np.expand_dims(img2,0))
             x[4] = net.avgpool4(x[4])
             final_shape = x[4].shape[-1]
             x = [net.flatten(i) for i in x]
@@ -102,8 +103,8 @@ def cal_mJI(label_path, img_folder, net):
             x = [x[i]*net.final_weights[i] for i in range(5)]
             x = tf.reduce_sum(x,axis=0)
             out = net.dense(x)
-            result = out[0]'''
-            result = net([img2,img2])#.numpy()[0]
+            result = out[0]"""
+            result = net([img2, img2])  # .numpy()[0]
             pred_coord = np.copy(result[0].numpy()[0])
             pred_coord[0::2] *= w
             pred_coord[1::2] *= h
@@ -112,7 +113,7 @@ def cal_mJI(label_path, img_folder, net):
             gt = np.array(coord_gt[0:8]).reshape((4, 2))
             pred = np.array(pred_coord[0:8]).reshape((4, 2))
             ji = intersection_with_correction_smart_doc_implementation(gt, pred, img)
-            #print("------------------------ji is:", ji)
+            # print("------------------------ji is:", ji)
             result_iou[f] = ji
             sum_ji += ji
             p_count += 1
@@ -123,9 +124,10 @@ if __name__ == "__main__":
     import os
     import time
     import sys
+
     argvs = sys.argv
-    
-    gpus = tf.config.experimental.list_physical_devices('GPU')
+
+    gpus = tf.config.experimental.list_physical_devices("GPU")
     if gpus:
         try:
             for gpu in gpus:
@@ -133,20 +135,20 @@ if __name__ == "__main__":
         except RuntimeError as e:
             print(e)
     net_tag = sys.argv[1]
-    net_folder = "./output/"+net_tag
-    png_folder = "" #path to your img foler
-    txt_path = "" #path to your test data label
-    record_path = "./{}.txt".format(net_tag) #test result
+    net_folder = "./output/" + net_tag
+    png_folder = ""  # path to your img foler
+    txt_path = ""  # path to your test data label
+    record_path = "./{}.txt".format(net_tag)  # test result
     if os.path.exists(record_path):
-        fr = open(record_path,"r")
+        fr = open(record_path, "r")
 
         lines = fr.readlines()
         nets = [line.split(",")[0] for line in lines]
         fr.close()
     else:
         nets = []
-    fw = open(record_path,"a+")
-    
+    fw = open(record_path, "a+")
+
     total_result = []
     for f in os.listdir(net_folder):
         net_path = os.path.join(net_folder, f)
@@ -157,13 +159,12 @@ if __name__ == "__main__":
         print(net_path)
         net = tf.keras.models.load_model(net_path)
         start_t = time.time()
-        result = cal_mJI(txt_path,png_folder,net)
+        result = cal_mJI(txt_path, png_folder, net)
         time_consumed = time.time() - start_t
         print(time_consumed)
-        
-        cur_result = "{},{}\n".format(f,result)
+
+        cur_result = "{},{}\n".format(f, result)
         total_result.append(cur_result)
         fw.writelines(cur_result)
         fw.flush()
         print(cur_result)
-    

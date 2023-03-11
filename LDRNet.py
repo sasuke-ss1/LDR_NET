@@ -9,9 +9,9 @@ class LDRNet(Model):
         self.classification_list = classification_list
         self.points_size = points_size
         self.input_shapes = input_shapes
-        self.base_model = \
-            tf.keras.applications.MobileNetV2(input_shape=self.input_shapes,
-                                              alpha=alpha, include_top=False)
+        self.base_model = tf.keras.applications.MobileNetV2(
+            input_shape=self.input_shapes, alpha=alpha, include_top=False
+        )
         if len(classification_list) > 0:
             class_size = sum(self.classification_list)
         else:

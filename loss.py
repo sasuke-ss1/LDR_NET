@@ -34,8 +34,10 @@ class LineLoss(keras.losses.Loss):
         y_diff_start = y_diff[:, 1:]
         y_diff_end = y_diff[:, 0:-1]
         similarity = (x_diff_start * x_diff_end + y_diff_start * y_diff_end) / (
-                    tf.sqrt(tf.square(x_diff_start) + tf.square(y_diff_start)) * tf.sqrt(
-                tf.square(x_diff_end) + tf.square(y_diff_end)) + 0.0000000000001)
+            tf.sqrt(tf.square(x_diff_start) + tf.square(y_diff_start))
+            * tf.sqrt(tf.square(x_diff_end) + tf.square(y_diff_end))
+            + 0.0000000000001
+        )
         slop_loss = tf.math.reduce_mean(1 - similarity, axis=1)
         x_diff_loss = tf.math.reduce_mean(tf.square(x_diff[:, 1:] - x_diff[:, 0:-1]), 1)
         y_diff_loss = tf.math.reduce_mean(tf.square(y_diff[:, 1:] - y_diff[:, 0:-1]), 1)
@@ -44,6 +46,7 @@ class LineLoss(keras.losses.Loss):
 
 if __name__ == "__main__":
     import numpy as np
+
     loss = WeightedLocLoss()
     res = loss.__call__(y_true=np.ones((1, 8)), y_pred=np.zeros((1, 8)), weights=np.ones((1, 8)), loss_type="mse")
     res = loss.__call__(y_true=np.ones((1, 8)), y_pred=np.zeros((1, 8)), weights=np.ones((1, 8)), loss_type="l1")

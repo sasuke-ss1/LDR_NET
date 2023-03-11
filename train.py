@@ -4,18 +4,14 @@ from loss import WeightedLocLoss, LineLoss
 from dataloader import CardDataset
 import os
 import numpy as np
-import cv2
-import sys
 import argparse
 import yaml
 
 
-# using weights 可以把那些分类为0的 loc loss 和line loss都设置为0，通过label.txt
-
 def init_args():
-    parser = argparse.ArgumentParser(description='LDRNet')
-    parser.add_argument('--config_file', default='config/open_dataset_resnet18_FPN_DBhead_polyLR.yaml', type=str)
-    parser.add_argument('--local_rank', dest='local_rank', default=0, type=int, help='Use distributed training')
+    parser = argparse.ArgumentParser(description="LDRNet")
+    parser.add_argument("--config_file", default="config/open_dataset_resnet18_FPN_DBhead_polyLR.yaml", type=str)
+    parser.add_argument("--local_rank", dest="local_rank", default=0, type=int, help="Use distributed training")
 
     args = parser.parse_args()
     return args
@@ -23,9 +19,15 @@ def init_args():
 
 def grad(config, model, inputs, targets):
     with tf.GradientTape() as tape:
-        loss_value, loss_list, y_ = loss(config, model, inputs, targets, training=True,
-                                         coord_size=config["points_size"] * 2,
-                                         class_list=config["class_list"])
+        loss_value, loss_list, y_ = loss(
+            config,
+            model,
+            inputs,
+            targets,
+            training=True,
+            coord_size=config["points_size"] * 2,
+            class_list=config["class_list"],
+        )
         return loss_value, loss_list, y_, tape.gradient(loss_value, model.trainable_variables)
 
 
@@ -50,15 +52,16 @@ def loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
             new_weights = weights_start + weights_increment
             for index in range(1, size_per_line):
                 new_weights = tf.concat([new_weights, weights_start + (index + 1) * weights_increment], axis=1)
-            y = tf.concat([coord_start, new_coord, weights_start, new_weights, tf.expand_dims(y[:, 8 * 2], axis=1)],
-                          axis=1)
+            y = tf.concat(
+                [coord_start, new_coord, weights_start, new_weights, tf.expand_dims(y[:, 8 * 2], axis=1)], axis=1
+            )
         else:
             y = tf.concat([new_coord, y[:, 8]], axis=1)
     corner_y_, border_y_, class_y_ = model(x, training=training)
     coord_y_ = tf.concat([corner_y_, border_y_], axis=1)
     coord_y = y[:, 0:coord_size]
     if config["loss"]["using_weights"]:
-        weights = y[:, coord_size:coord_size * 2]
+        weights = y[:, coord_size : coord_size * 2]
         y_end = coord_size * 2
     else:
         weights = tf.ones(weighted_loc_loss.point_size * 2) / (weighted_loc_loss.point_size * 2)
@@ -84,12 +87,13 @@ def loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
         total_slop_loss = 0
         total_diff_loss = 0
         for index in range(4):
-            line = coord_y_[:, index * 2:index * 2 + 2]
+            line = coord_y_[:, index * 2 : index * 2 + 2]
             for coord_index in range(size_per_line):
                 line = tf.concat(
-                    [line, coord_y_[:, 8 + coord_index * 8 + index * 2:8 + coord_index * 8 + index * 2 + 2]], axis=1)
+                    [line, coord_y_[:, 8 + coord_index * 8 + index * 2 : 8 + coord_index * 8 + index * 2 + 2]], axis=1
+                )
                 # liner = tf.concat([liner,coord_y[:,8+coord_index*8+index*2:8+coord_index*8+index*2+2]],axis=1)
-            line = tf.concat([line, coord_y_[:, (index * 2 + 2) % 8:(index * 2 + 2 + 2) % 8]], axis=1)
+            line = tf.concat([line, coord_y_[:, (index * 2 + 2) % 8 : (index * 2 + 2 + 2) % 8]], axis=1)
             cur_slop_loss, cur_diff_loss = line_loss(line)
             if config["loss"]["using_weights"]:
                 total_slop_loss += cur_slop_loss * tf.math.reduce_mean(weights, axis=1)
@@ -108,27 +112,34 @@ def loss(config, model, x, y, training, coord_size=8, class_list=[1], use_line_l
 
 
 def train(config):
-    gpus = tf.config.experimental.list_physical_devices('GPU')
+    gpus = tf.config.experimental.list_physical_devices("GPU")
     tf.config.experimental.set_memory_growth(gpus[0], True)
-    fwt = open("./train_icdar15_angle_loss_36p_{}bs_L2loss_{}points_{}backboneAlpha.log".format(config["batch_size"],
-                                                                                                config["points_size"],
-                                                                                                config["backbone_alpha"]
-                                                                                                ), "a")
+    fwt = open(
+        "./train_icdar15_angle_loss_36p_{}bs_L2loss_{}points_{}backboneAlpha.log".format(
+            config["batch_size"], config["points_size"], config["backbone_alpha"]
+        ),
+        "a",
+    )
     out_path = "./output/train_icdar_15_angle_loss_36p_{}bs_L2loss_{}points_{}backboneAlpha/".format(
         config["batch_size"],
         config["points_size"],
         config["backbone_alpha"],
     )
-    dataset = CardDataset(config["label_path"],
-                          img_folder=config["img_folder_path"],
-                          class_sizes=config["class_list"], batch_size=config["batch_size"])
+    dataset = CardDataset(
+        config["label_path"],
+        img_folder=config["img_folder_path"],
+        class_sizes=config["class_list"],
+        batch_size=config["batch_size"],
+    )
     train_dataset, val_dataset = dataset.get_data()
 
-    LDRModel = LDRNet(classification_list=config["class_list"], points_size=config["points_size"],
-                      alpha=config["backbone_alpha"])
+    LDRModel = LDRNet(
+        classification_list=config["class_list"], points_size=config["points_size"], alpha=config["backbone_alpha"]
+    )
     epoch_size = len(train_dataset)
     lr_scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-        [s * epoch_size for s in config["optimizer"]["bounds"]], config["optimizer"]["rates"])
+        [s * epoch_size for s in config["optimizer"]["bounds"]], config["optimizer"]["rates"]
+    )
     optimizer = tf.keras.optimizers.RMSprop(lr_scheduler)
     train_loss_results = []
     loc_loss_result = []
@@ -158,11 +169,16 @@ def train(config):
             epoch_loc_loss_avg.update_state(loss_list[-3])
             epoch_slop_loss_avg.update_state(loss_list[-2])
             epoch_diff_loss_avg.update_state(loss_list[-1])
-            msg_in = "Step {:06d}: Loss: {:.6f}, lr: {:.6f}, Loc_loss: {:.6f}, Slop_loss: {:.6f}, Diff_loss: {:.6f}".format(
-                step, loss_value.numpy().mean(),
-                optimizer._decayed_lr(
-                    tf.float32).numpy(),
-                loss_list[-3].numpy().mean(), loss_list[-2].numpy().mean(), loss_list[-1].numpy().mean())
+            msg_in = (
+                "Step {:06d}: Loss: {:.6f}, lr: {:.6f}, Loc_loss: {:.6f}, Slop_loss: {:.6f}, Diff_loss: {:.6f}".format(
+                    step,
+                    loss_value.numpy().mean(),
+                    optimizer._decayed_lr(tf.float32).numpy(),
+                    loss_list[-3].numpy().mean(),
+                    loss_list[-2].numpy().mean(),
+                    loss_list[-1].numpy().mean(),
+                )
+            )
             for i in range(len(config["class_list"])):
                 # class_loss_results[i].append(epoch_class_losses_avg[i].result())
                 msg_in += ",class_loss_{}:{:.6f}".format(i, loss_list[i].numpy().mean())
@@ -172,11 +188,9 @@ def train(config):
             fwt.flush()
         train_loss_results.append(epoch_loss_avg.result())
         loc_loss_result.append(epoch_loc_loss_avg.result())
-        msg = "Epoch {:06d}: Loss: {:.6f}, lr: {:.6f}, Loc_loss: {:.6f}".format(epoch,
-                                                                                epoch_loss_avg.result(),
-                                                                                optimizer._decayed_lr(
-                                                                                    tf.float32).numpy(),
-                                                                                epoch_loc_loss_avg.result())
+        msg = "Epoch {:06d}: Loss: {:.6f}, lr: {:.6f}, Loc_loss: {:.6f}".format(
+            epoch, epoch_loss_avg.result(), optimizer._decayed_lr(tf.float32).numpy(), epoch_loc_loss_avg.result()
+        )
         for i in range(len(config["class_list"])):
             class_loss_results[i].append(epoch_class_losses_avg[i].result())
             msg += ",class_loss_{}:{:.6f}".format(i, epoch_class_losses_avg[i].result())
@@ -190,27 +204,39 @@ def train(config):
             epoch5_slop_loss_avg = tf.keras.metrics.Mean()
             epoch5_diff_loss_avg = tf.keras.metrics.Mean()
             for x, y in val_dataset:
-                loss_value, loss_list, y_ = loss(config, LDRModel, x, y, training=False,
-                                                 coord_size=config["points_size"] * 2,
-                                                 class_list=config["class_list"])
+                loss_value, loss_list, y_ = loss(
+                    config,
+                    LDRModel,
+                    x,
+                    y,
+                    training=False,
+                    coord_size=config["points_size"] * 2,
+                    class_list=config["class_list"],
+                )
                 epoch5_loc_loss_avg.update_state(loss_list[-3])
                 epoch5_slop_loss_avg.update_state(loss_list[-2])
                 epoch5_diff_loss_avg.update_state(loss_list[-1])
                 epoch5_loss_avg.update_state(loss_value)
             msg_eval = "Epoch {:06d}: Test Loss: {:.6f}, Test Loc Loss:{:.6f}, Test Slop Loss:{:.6f}, Test Diff Loss:{:.6f}".format(
-                epoch, epoch5_loss_avg.result(),
-                epoch5_loc_loss_avg.result(), epoch5_slop_loss_avg.result(), epoch5_diff_loss_avg.result())
+                epoch,
+                epoch5_loss_avg.result(),
+                epoch5_loc_loss_avg.result(),
+                epoch5_slop_loss_avg.result(),
+                epoch5_diff_loss_avg.result(),
+            )
             fwt.write(msg_eval + "\n")
             fwt.flush()
             print(msg_eval)
             LDRModel.save(
-                out_path + "{:06d}_{:.6f}_{:.6f}_{:.6f}".format(epoch, epoch_loss_avg.result(),
-                                                                epoch5_loss_avg.result(),
-                                                                optimizer._decayed_lr(tf.float32).numpy()))
+                out_path
+                + "{:06d}_{:.6f}_{:.6f}_{:.6f}".format(
+                    epoch, epoch_loss_avg.result(), epoch5_loss_avg.result(), optimizer._decayed_lr(tf.float32).numpy()
+                )
+            )
 
 
 if __name__ == "__main__":
     args = init_args()
     assert os.path.exists(args.config_file)
-    config = yaml.load(open(args.config_file, 'rb'))
+    config = yaml.load(open(args.config_file, "rb"))
     train(config)

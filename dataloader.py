@@ -3,64 +3,105 @@ from tensorflow.python.framework import ops, dtypes
 import tensorflow_addons as tfa
 import numpy as np
 
+
 def rotate_point(point, radians, image_height, image_width):
     image_height, image_width = (
-        tf.cast(image_height, dtype=dtypes.float32), tf.cast(image_width, dtype=dtypes.float32))
+        tf.cast(image_height, dtype=dtypes.float32),
+        tf.cast(image_width, dtype=dtypes.float32),
+    )
     # y = -tf.cast(image_height * (point[1] - 0.5),dtype=dtypes.int32)
     # x = tf.cast(image_width * (point[0] - 0.5),dtype=dtypes.int32)
     y = -image_height * (point[:, 1] - 0.5)
     x = image_width * (point[:, 0] - 0.5)
     # coordinates = tf.stack()
     coordinates = tf.stack([y, x], axis=1)
-    rotation_matrix = tf.stack(
-        [[tf.cos(radians), tf.sin(radians)],
-         [-tf.sin(radians), tf.cos(radians)]])
-    new_coords = tf.cast(
-        tf.matmul(rotation_matrix, tf.transpose(coordinates)), tf.int32)
+    rotation_matrix = tf.stack([[tf.cos(radians), tf.sin(radians)], [-tf.sin(radians), tf.cos(radians)]])
+    new_coords = tf.cast(tf.matmul(rotation_matrix, tf.transpose(coordinates)), tf.int32)
     x = -(tf.cast(new_coords[0, :], dtype=dtypes.float32) / image_height - 0.5)
     y = tf.cast(new_coords[1, :], dtype=dtypes.float32) / image_width + 0.5
     return tf.stack([y, x], axis=1)
 
 
 def random_padding(img, label, max_ratio=0.5):
-    ratio = tf.random.uniform(shape=[4], minval=0., maxval=max_ratio)
+    ratio = tf.random.uniform(shape=[4], minval=0.0, maxval=max_ratio)
     img_shape = tf.cast(tf.shape(img), dtype=tf.float32)
     size_change = tf.round(ratio * tf.cast(tf.concat([img_shape[0:2], img_shape[0:2]], axis=0), dtype=dtypes.float32))
     new_height = img_shape[0] + size_change[0] + size_change[2]
     new_width = img_shape[1] + size_change[1] + size_change[3]
-    img = tf.image.pad_to_bounding_box(img, tf.cast(size_change[0], dtype=tf.int32),
-                                       tf.cast(size_change[1], dtype=tf.int32), tf.cast(new_height, dtype=tf.int32),
-                                       tf.cast(new_width, dtype=tf.int32))
-    coords = label[0:8] * [img_shape[1], img_shape[0], img_shape[1], img_shape[0], img_shape[1], img_shape[0],
-                           img_shape[1], img_shape[0]]
-    coords = coords + [size_change[1], size_change[0], size_change[1], size_change[0], size_change[1], size_change[0],
-                       size_change[1], size_change[0]]
+    img = tf.image.pad_to_bounding_box(
+        img,
+        tf.cast(size_change[0], dtype=tf.int32),
+        tf.cast(size_change[1], dtype=tf.int32),
+        tf.cast(new_height, dtype=tf.int32),
+        tf.cast(new_width, dtype=tf.int32),
+    )
+    coords = label[0:8] * [
+        img_shape[1],
+        img_shape[0],
+        img_shape[1],
+        img_shape[0],
+        img_shape[1],
+        img_shape[0],
+        img_shape[1],
+        img_shape[0],
+    ]
+    coords = coords + [
+        size_change[1],
+        size_change[0],
+        size_change[1],
+        size_change[0],
+        size_change[1],
+        size_change[0],
+        size_change[1],
+        size_change[0],
+    ]
     coords = coords / [new_width, new_height, new_width, new_height, new_width, new_height, new_width, new_height]
     return img, tf.concat([tf.reshape(coords, [-1]), label[8:]], axis=0)
 
 
 def random_crop(img, label, max_ratio=0.1):
     # label：normalized
-    ratio = tf.random.uniform(shape=[4], minval=0., maxval=max_ratio)
+    ratio = tf.random.uniform(shape=[4], minval=0.0, maxval=max_ratio)
     img_shape = tf.cast(tf.shape(img), dtype=tf.float32)
     size_change = tf.round(ratio * tf.cast(tf.concat([img_shape[0:2], img_shape[0:2]], axis=0), dtype=dtypes.float32))
     new_height = img_shape[0] - size_change[0] - size_change[2]
     new_width = img_shape[1] - size_change[1] - size_change[3]
     # tfa.image.
-    img = tf.image.crop_to_bounding_box(img, tf.cast(size_change[0], dtype=tf.int32),
-                                        tf.cast(size_change[1], dtype=tf.int32), tf.cast(new_height, dtype=tf.int32),
-                                        tf.cast(new_width, dtype=tf.int32))
-    coords = label[0:8] * [img_shape[1], img_shape[0], img_shape[1], img_shape[0], img_shape[1], img_shape[0],
-                           img_shape[1], img_shape[0]]
-    coords = coords - [size_change[1], size_change[0], size_change[1], size_change[0], size_change[1], size_change[0],
-                       size_change[1], size_change[0]]
+    img = tf.image.crop_to_bounding_box(
+        img,
+        tf.cast(size_change[0], dtype=tf.int32),
+        tf.cast(size_change[1], dtype=tf.int32),
+        tf.cast(new_height, dtype=tf.int32),
+        tf.cast(new_width, dtype=tf.int32),
+    )
+    coords = label[0:8] * [
+        img_shape[1],
+        img_shape[0],
+        img_shape[1],
+        img_shape[0],
+        img_shape[1],
+        img_shape[0],
+        img_shape[1],
+        img_shape[0],
+    ]
+    coords = coords - [
+        size_change[1],
+        size_change[0],
+        size_change[1],
+        size_change[0],
+        size_change[1],
+        size_change[0],
+        size_change[1],
+        size_change[0],
+    ]
     coords = coords / [new_width, new_height, new_width, new_height, new_width, new_height, new_width, new_height]
     return img, tf.concat([tf.reshape(coords, [-1]), label[8:]], axis=0)
 
 
 class CardDataset:
-    def __init__(self, txt_path, coord_size=8, img_folder="", val_ratio=0.2, batch_size=1, class_sizes=[],
-                 weighted=False):
+    def __init__(
+        self, txt_path, coord_size=8, img_folder="", val_ratio=0.2, batch_size=1, class_sizes=[], weighted=False
+    ):
         self.txt_path = txt_path
         self.data_size = 0
         self.val_size = 0
@@ -185,7 +226,8 @@ class CardDataset:
         labels = label  # tf.strings.split(label, "-")
         number_labels = tf.strings.to_number(labels)
         normalizer = [width, height, width, height, width, height, width, height] + [1] * (
-                self.class_size + self.coord_size)
+            self.class_size + self.coord_size
+        )
         # print(normalizer)
         return number_labels / normalizer
 
@@ -223,8 +265,7 @@ class CardDataset:
             lines = [line.strip() for line in lines]
             self.data_size = len(lines)
         np.random.shuffle(lines)
-        file_lines = ops.convert_to_tensor(
-            lines, dtype=dtypes.string, name="file_lines")
+        file_lines = ops.convert_to_tensor(lines, dtype=dtypes.string, name="file_lines")
         dataset = tf.data.Dataset.from_tensor_slices(file_lines)
         self.val_size = int(self.data_size * self.val_ratio)
         dataset.shuffle(self.data_size, reshuffle_each_iteration=False)
@@ -249,9 +290,11 @@ if __name__ == "__main__":
     lines = fr.readlines()
     count = 0
     while 1:
-        dataset = CardDataset(img_folder="/Users/horanqian/workspace/data/video_new_imgs2/card_detector_images2/",
-                              txt_path="/Users/horanqian/workspace/data/video_new_imgs2/label_new2.txt",
-                              class_sizes=[2])
+        dataset = CardDataset(
+            img_folder="/Users/horanqian/workspace/data/video_new_imgs2/card_detector_images2/",
+            txt_path="/Users/horanqian/workspace/data/video_new_imgs2/label_new2.txt",
+            class_sizes=[2],
+        )
         img, label = dataset.analysis_line(lines[count])
         # img = tfa.image.rotate(img,3.14)
         # img, _ = CardDataset.decode_img(
